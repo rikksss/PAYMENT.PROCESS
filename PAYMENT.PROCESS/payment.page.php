@@ -1,113 +1,199 @@
+<?php
+// Start the session
+session_start();
+
+// Include database connection file
+$connection = new mysqli('localhost', 'root', '', 'paypal_integration');
+
+if ($connection->connect_error) {
+    die("Connection failed: " . $connection->connect_error);
+}
+
+// Set the total amount for the payment
+$total_amount = 200.00; // Change this value as needed
+
+// Check if the form is submitted
+if (isset($_SERVER["REQUEST_METHOD"]) && $_SERVER["REQUEST_METHOD"] === "POST") {
+    // Get user input
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $phone = $_POST['phone'];
+    $address = $_POST['address'];
+    $order_notes = $_POST['order_notes']; // Changed from comments to order_notes
+
+    // Save the transaction details in the session
+    $_SESSION['transaction_details'] = [
+        'name' => $name,
+        'email' => $email,
+        'phone' => $phone,
+        'address' => $address,
+        'order_notes' => $order_notes,
+        'amount' => $total_amount
+    ];
+}
+
+// Redirect to user_dashboard.php if transaction_id is set
+if (isset($_SESSION['transaction_id'])) {
+    header("Location: user_dashboard.php");
+    exit();
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Payment Method</title>
+    <title>Payment Form</title>
     <style>
         body {
             font-family: Arial, sans-serif;
+            background: url('images/Lazapee.png') no-repeat center center fixed; /* Add your GIF URL here */
+            background-size: cover; /* Ensures the background covers the entire viewport */
+            padding: 0;
+            margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background: url('images/Lazapee.png') no-repeat center center fixed; /* Example background */
-            background-size: cover; /* Ensures the background covers the entire area */
+            transition: opacity 0.5s ease; /* Smooth transition for opacity */
         }
-        .payment-wrapper {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.8); /* Slightly transparent background */
+
+        .center-wrapper {
+            max-width: 400px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.8); /* Slightly transparent background for better readability */
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
         }
+
         h1 {
             margin-bottom: 20px;
             color: #333;
         }
-        button {
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="text"], input[type="email"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        #paypal-button-container {
+            margin-top: 20px;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+        }
+
+        .checkout-button {
+            display: none; /* Initially hidden */
+            margin-top: 20px;
             padding: 10px 20px;
-            margin: 10px;
+            background-color: #28a745;
+            color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
-        }
-        .paypal {
-            background-color: #0070ba;
-            color: white;
-        }
-        .gcash {
-            background-color: #00a1e0;
-            color: white;
-        }
-        .paymaya {
-            background-color: #ff4b4b;
-            color: white;
-        }
-        /* Loading Screen Styles */
-        #loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            display: none; /* Hidden by default */
-            justify-content: center;
-            align-items: center;
-            z-index: 1000; /* Ensure it is on top */
-        }
-        #loading-icon {
-            width: 50px; /* Size of the loading icon */
-            height: 50px;
-            border: 5px solid #0070ba; /* Border color */
-            border-top: 5px solid transparent; /* Top border transparent for spinning effect */
-            border-radius: 50%;
-            animation: spin 1s linear infinite, elastic 0.5s ease-in-out infinite; /* Animation */
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        @keyframes elastic {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-        }
-        #loading-message {
-            font-size: 24px;
-            color: #333;
-            margin-top: 10px; /* Space between icon and message */
         }
     </style>
+    <script src="https://www.paypal.com/sdk/js?client-id=AYxFM5_jJc38rZWWuuuP4OgPJiTtM7mQ4U7ohuiWPhYu552lHjV0reoYZljyXsWFLn-A27jZMTpPagsI"></script> <!-- Replace with your PayPal client ID -->
 </head>
 <body>
 
-    <div class="payment-wrapper">
-        <h1>Select Payment Method</h1>
-        <button class="paypal" onclick="showLoading('payment.page.php')">PayPal</button>
-        <button class="gcash" onclick="alert('GCash payment option is not yet implemented.')">GCash</button>
-        <button class="paymaya" onclick="alert('PayMaya payment option is not yet implemented.')">PayMaya</button>
-    </div>
-
-    <!-- Loading Screen -->
-    <div id="loading-screen">
-        <div>
-            <div id="loading-icon"></div>
-            <div id="loading-message">Loading, please wait...</div>
-        </div>
+    <div class="center-wrapper">
+        <h1>Payment Form</h1>
+        <form id="payment-form" method="POST">
+            <div class="form-group ">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone Number:</label>
+                <input type="text" id="phone" name="phone" required>
+            </div>
+            <div class="form-group">
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address" required>
+            </div>
+            <div class="form-group">
+                <label for="order_notes">Order Notes:</label>
+                <textarea id="order_notes" name="order_notes" rows="4"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="amount">Amount:</label>
+                <input type="text" id="amount" name="amount" value="<?php echo number_format($total_amount, 2); ?>" readonly>
+            </div>
+            <div id="paypal-button-container"></div>
+            <button id="checkout-button" class="checkout-button" onclick="saveTransaction()">Checkout</button>
+        </form>
+        <div class="footer">Thank you for your payment!</div>
     </div>
 
     <script>
-        function showLoading(url) {
-            // Show the loading screen
-            document.getElementById('loading-screen').style.display = 'flex';
-            // Redirect after a short delay to allow the loading screen to appear
-            setTimeout(function() {
-                window.location.href = url;
-            }, 500); // Adjust the delay as needed
+        let transactionCompleted = false;
+
+        paypal.Buttons({
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: '<?php echo $total_amount; ?>'
+                        }
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+                    // Handle successful payment here
+                    alert('Transaction completed by ' + details.payer.name.given_name);
+                    transactionCompleted = true; // Set flag to true
+                    document.getElementById('checkout-button').style.display = 'block'; // Show checkout button
+                });
+            }
+        }).render('#paypal-button-container');
+
+        function saveTransaction() {
+            if (transactionCompleted) {
+                // Send the form data to the server to save it
+                const formData = new FormData(document.getElementById('payment-form'));
+                fetch('save_transaction.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert('Transaction saved successfully!');
+                    // Optionally redirect or update the UI
+                })
+                .catch(error => {
+                    console.error('Error saving transaction:', error);
+                });
+            } else {
+                alert('Please complete the payment first.');
+            }
         }
     </script>
-
 </body>
 </html>
